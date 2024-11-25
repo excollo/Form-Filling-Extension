@@ -1,12 +1,26 @@
 // content.js
+console.log("Content script loaded");
+
+// Handle extension messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Message received in content script:", request.action);
+
+  // Handle ping message to verify content script is loaded
+  if (request.action === "ping") {
+    sendResponse({ status: "ok" });
+    return true;
+  }
+
+  // Handle form filling
   if (request.action === "fillForm") {
     try {
       const formData = request.data;
       console.log("Received form data:", formData);
 
+      // Clear existing form data
       clearForm();
 
+      // Track filled fields
       const filledFields = new Map();
 
       // Input field mappings
@@ -16,81 +30,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "Identity No": 'input[placeholder="Enter Identity No."]',
       };
 
-      // Function to trigger events on elements
-      function triggerEvents(element) {
-        ["input", "change", "blur"].forEach((eventType) => {
-          element.dispatchEvent(new Event(eventType, { bubbles: true }));
-        });
-      }
-
       // Fill input fields
       Object.entries(inputMappings).forEach(([fieldName, selector]) => {
         const field = document.querySelector(selector);
         if (field && formData[fieldName]) {
           field.value = formData[fieldName];
           triggerEvents(field);
-          filledFields.set(fieldName, [field]);
+          filledFields.set(fieldName, true);
+          console.log(`Filled field: ${fieldName}`);
         } else {
           console.warn(`Field "${fieldName}" not found or no data provided.`);
         }
       });
 
-      async function fillDropdowns() {
-        for (const [fieldName, config] of Object.entries(dropdownMappings)) {
-          console.log(
-            `Attempting to fill "${fieldName}" with "${config.value}"`
-          );
-          const success = await handleCustomDropdown(
-            config.selector,
-            config.value
-          );
-          if (success) {
-            console.log(`Successfully filled "${fieldName}"`);
-            filledFields.set(fieldName, ["custom-dropdown"]);
-          } else {
-            console.warn(`Failed to fill "${fieldName}"`);
-          }
-          // Delay to ensure smooth dropdown selection
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
-      }
-
-      // Start filling dropdowns and send response
-      fillDropdowns().then(() => {
-        sendResponse({
-          success: true,
-          message: `Fields filled: ${filledFields.size}`,
-          filledFieldsInfo: Array.from(filledFields.entries()).map(
-            ([label, types]) => ({
-              label,
-              types,
-            })
-          ),
-        });
+      // Send success response
+      sendResponse({
+        success: true,
+        message: `Fields filled: ${filledFields.size}`,
+        filledFields: Array.from(filledFields.keys()),
       });
-
-      // Observer for dynamic content changes
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.addedNodes.length) {
-            console.log("DOM updated, rechecking unfilled dropdowns.");
-            fillDropdowns();
-          }
-        }
-      });
-
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class", "style"],
-      });
-
-      // Cleanup observer after a timeout
-      setTimeout(() => {
-        observer.disconnect();
-        console.log("MutationObserver disconnected after timeout.");
-      }, 10000);
     } catch (error) {
       console.error("Error filling form:", error);
       sendResponse({
@@ -98,16 +56,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         error: error.message,
       });
     }
+    return true;
   }
-  return true; // Keep the message channel open for async responses
 });
 
-function clearForm() {
-  const inputs = document.querySelectorAll("input, select, textarea");
-  inputs.forEach((input) => {
-    if (input.type !== "submit") {
-      input.value = "";
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+// Helper function to trigger events on form fields
+function triggerEvents(element) {
+  ["input", "change", "blur"].forEach((eventType) => {
+    element.dispatchEvent(new Event(eventType, { bubbles: true }));
   });
 }
+
+// Helper function to clear form fields
+function clearForm() {
+  const inputs = document.querySelectorAll(
+    "input:not([type='submit']), select, textarea"
+  );
+  inputs.forEach((input) => {
+    input.value = "";
+    triggerEvents(input);
+  });
+}
+
+// Log that content script is ready
+console.log("Content script initialized and ready");

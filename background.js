@@ -1,8 +1,17 @@
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Excel to Form Auto-Fill extension installed.");
+  // Initialize storage with default values
+  chrome.storage.local.set({
+    excelData: null,
+    currentIndex: 0,
+    settings: {
+      autoAdvance: true,
+      fillDelay: 500,
+      retryAttempts: 3,
+    },
+  });
 });
 
-// Listener for content script injection
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "checkContentScript") {
     sendResponse({ status: "ready" });

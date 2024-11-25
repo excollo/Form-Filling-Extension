@@ -3,7 +3,7 @@
   "name": "Excel to Form Auto-Fill",
   "description": "Automatically fill forms using data from an Excel file",
   "version": "1.0",
-  "permissions": ["activeTab", "scripting", "tabs"],
+  "permissions": ["activeTab", "scripting", "tabs", "storage"],
   "background": {
     "service_worker": "background.js"
   },
