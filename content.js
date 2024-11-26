@@ -43,6 +43,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       });
 
+      // Handle Tourist Type dropdown
+      if (formData["Tourist Type"]) {
+        fillTouristTypeDropdown(formData["Tourist Type"])
+          .then((result) => {
+            console.log(result);
+            filledFields.set("Tourist Type", true);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      } else {
+        console.warn("Tourist Type data not provided.");
+      }
+
+      // Handle Identity Proof dropdown
+      if (formData["Select Identity Proof"]) {
+        selectIdentityProofDropdown(formData["Select Identity Proof"])
+          .then((result) => {
+            console.log(result);
+            filledFields.set("Select Identity Proof", true);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      } else {
+        console.warn("Identity Proof data not provided.");
+      }
+
       // Send success response
       sendResponse({
         success: true,
@@ -60,23 +88,278 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Helper function to trigger events on form fields
+async function selectIdentityProofDropdown(identityProofValue) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Comprehensive dropdown trigger selection
+      const dropdownTriggers = [
+        () =>
+          document.querySelector(
+            'div[role="combobox"]:not([aria-hidden="true"])[tabindex="0"]'
+          ),
+        () =>
+          document.querySelector('.MuiSelect-select:not([aria-hidden="true"])'),
+        () =>
+          document.querySelector(
+            '[aria-haspopup="listbox"]:not([aria-hidden="true"])'
+          ),
+      ];
+
+      let dropdownTrigger;
+      for (let findTrigger of dropdownTriggers) {
+        dropdownTrigger = findTrigger();
+        if (dropdownTrigger) break;
+      }
+
+      if (!dropdownTrigger) {
+        console.error("NO DROPDOWN TRIGGER FOUND. Detailed DOM Analysis:");
+        console.log(
+          "All combobox elements:",
+          Array.from(document.querySelectorAll('[role="combobox"]')).map(
+            (el) => ({
+              textContent: el.textContent,
+              classes: el.className,
+              attributes: Array.from(el.attributes).map(
+                (a) => `${a.name}="${a.value}`
+              ),
+            })
+          )
+        );
+        return reject("No dropdown trigger found");
+      }
+
+      console.log("Dropdown Trigger Found:", {
+        text: dropdownTrigger.textContent,
+        classes: dropdownTrigger.className,
+      });
+
+      // Advanced interaction to open dropdown
+      dropdownTrigger.click();
+      dropdownTrigger.dispatchEvent(
+        new MouseEvent("mousedown", {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+      // Multiple strategies to find options
+      const optionSelectors = [
+        '[role="option"]:not([aria-hidden="true"])',
+        '.MuiMenuItem-root:not([aria-hidden="true"])',
+        'li[role="option"]:not([aria-hidden="true"])',
+        'ul[role="listbox"] > li:not([aria-hidden="true"])',
+        '.MuiList-root > li:not([aria-hidden="true"])',
+      ];
+
+      const findOptions = () => {
+        let foundOptions = [];
+        for (let selector of optionSelectors) {
+          foundOptions = Array.from(document.querySelectorAll(selector));
+          if (foundOptions.length > 0) break;
+        }
+        return foundOptions;
+      };
+
+      // Multiple attempts to find options
+      const attemptFindOptions = async (attempt = 0) => {
+        const options = findOptions();
+
+        console.log(`Attempt ${attempt + 1}: Found ${options.length} options`);
+
+        if (options.length > 0) {
+          console.log(
+            "Option Details:",
+            options.map((opt) => ({
+              text: opt.textContent.trim(),
+              classes: opt.className,
+            }))
+          );
+
+          // Check if the desired option is present
+          const matchingOption = options.find(
+            (option) =>
+              option.textContent.trim().toLowerCase() ===
+              identityProofValue.toLowerCase()
+          );
+
+          if (matchingOption) {
+            matchingOption.click();
+
+            // Verify selection
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            const currentSelection = document.querySelector(
+              'div[role="combobox"]:not([aria-hidden="true"])'
+            );
+            console.log(
+              "Current Selection:",
+              currentSelection?.textContent || "Not found"
+            );
+            resolve("Identity Proof selected successfully");
+            return;
+          } else {
+            console.warn(`No exact match for "${identityProofValue}"`);
+            console.warn(
+              "Available options:",
+              options.map((opt) => opt.textContent.trim())
+            );
+          }
+        }
+
+        // Retry mechanism
+        if (attempt < 5) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await attemptFindOptions(attempt + 1);
+        } else {
+          reject(`Could not find option: ${identityProofValue}`);
+        }
+      };
+
+      // Start the option finding process
+      await attemptFindOptions();
+    } catch (error) {
+      console.error("Comprehensive Dropdown Error:", error);
+      reject(error.message);
+    }
+  });
+}
+
+async function fillTouristTypeDropdown(touristTypeValue) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Comprehensive dropdown trigger selection
+      const dropdownTriggers = [
+        () => document.querySelector('div[role="combobox"][tabindex="0"]'),
+        () => document.querySelector(".MuiSelect-select"),
+        () => document.querySelector('[aria-haspopup="listbox"]'),
+      ];
+
+      let dropdownTrigger;
+      for (let findTrigger of dropdownTriggers) {
+        dropdownTrigger = findTrigger();
+        if (dropdownTrigger) break;
+      }
+
+      if (!dropdownTrigger) {
+        console.error("NO DROPDOWN TRIGGER FOUND. Detailed DOM Analysis:");
+        console.log(
+          "All combobox elements:",
+          Array.from(document.querySelectorAll('[role="combobox"]')).map(
+            (el) => ({
+              textContent: el.textContent,
+              classes: el.className,
+              attributes: Array.from(el.attributes).map(
+                (a) => `${a.name}="${a.value}`
+              ),
+            })
+          )
+        );
+        return reject("No dropdown trigger found");
+      }
+
+      console.log("Dropdown Trigger Found:", {
+        text: dropdownTrigger.textContent,
+        classes: dropdownTrigger.className,
+      });
+
+      // Advanced interaction to open dropdown
+      dropdownTrigger.click();
+      dropdownTrigger.dispatchEvent(
+        new MouseEvent("mousedown", {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+      // Multiple strategies to find options
+      const optionSelectors = [
+        '[role="option"]',
+        ".MuiMenuItem-root",
+        'li[role="option"]',
+        'ul[role="listbox"] > li',
+        ".MuiList-root > li",
+      ];
+
+      const findOptions = () => {
+        let foundOptions = [];
+        for (let selector of optionSelectors) {
+          foundOptions = Array.from(document.querySelectorAll(selector));
+          if (foundOptions.length > 0) break;
+        }
+        return foundOptions;
+      };
+
+      // Multiple attempts to find options
+      const attemptFindOptions = (attempt = 0) => {
+        const options = findOptions();
+
+        console.log(`Attempt ${attempt + 1}: Found ${options.length} options`);
+
+        if (options.length > 0) {
+          console.log(
+            "Option Details:",
+            options.map((opt) => ({
+              text: opt.textContent.trim(),
+              classes: opt.className,
+            }))
+          );
+
+          const matchingOption = options.find(
+            (option) => option.textContent.trim() === touristTypeValue
+          );
+
+          if (matchingOption) {
+            matchingOption.click();
+
+            // Verify selection
+            setTimeout(() => {
+              const currentSelection = document.querySelector(
+                'div[role="combobox"]'
+              );
+              console.log("Current Selection:", currentSelection.textContent);
+              resolve("Tourist Type selected successfully");
+            }, 300);
+            return;
+          } else {
+            console.warn(`No exact match for "${touristTypeValue}"`);
+            console.warn(
+              "Available options:",
+              options.map((opt) => opt.textContent.trim())
+            );
+          }
+        }
+
+        // Retry mechanism
+        if (attempt < 3) {
+          setTimeout(() => attemptFindOptions(attempt + 1), 500);
+        } else {
+          reject(`Could not find option: ${touristTypeValue}`);
+        }
+      };
+
+      // Start the option finding process
+      attemptFindOptions();
+    } catch (error) {
+      console.error("Dropdown Error:", error);
+      reject(error.message);
+    }
+  });
+}
+
+// Helper function to trigger events after filling fields
 function triggerEvents(element) {
-  ["input", "change", "blur"].forEach((eventType) => {
-    element.dispatchEvent(new Event(eventType, { bubbles: true }));
-  });
+  const event = new Event("input", { bubbles: true });
+  element.dispatchEvent(event);
 }
 
-// Helper function to clear form fields
+// Helper function to clear all fields
 function clearForm() {
-  const inputs = document.querySelectorAll(
-    "input:not([type='submit']), select, textarea"
-  );
-  inputs.forEach((input) => {
-    input.value = "";
-    triggerEvents(input);
+  const fields = document.querySelectorAll("input, textarea, select");
+  fields.forEach((field) => {
+    if (field.type !== "submit" && field.type !== "button") {
+      field.value = "";
+      triggerEvents(field);
+    }
   });
 }
-
-// Log that content script is ready
-console.log("Content script initialized and ready");
